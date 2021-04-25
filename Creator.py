@@ -1,43 +1,98 @@
 from abc import ABC, abstractmethod
 from Units import *
+from Units_pool import Units_pool
 
 
 def return_unit(key):
-    CreatorDict = {"Imp": CreateImp(), "Demon": CreateDemon(), "Cerberus": CreateCerberus(),
-                   "Pit_fiend": CreatePit_fiend(),
-                   "Devil": CreateDevil(), "Skeleton_warrior": CreateSkeleton_warrior(),
-                   "Ghost": CreateGhost(), "Vampire": CreateVampire(), "Lich": CreateLich(),
-                   "Death_knight": CreateDeath_knight(), "Footman": CreateFootman(), "Archer": CreateArcher(),
-                   "Berserker": CreateBerserker(), "Lands_knecht": CreateLands_knecht(),
-                   "Paladin": CreatePaladin()}
+    CreatorDict = {"Imp": ImpCreator(), "Demon": DemonCreator(), "Cerberus": CerberusCreator(),
+                   "Pit_fiend": Pit_fiendCreator(),
+                   "Devil": DevilCreator(), "Skeleton_warrior": Skeleton_warriorCreator(),
+                   "Ghost": GhostCreator(), "Vampire": VampireCreator(), "Lich": LichCreator(),
+                   "Death_knight": Death_knightCreator(), "Footman": FootmanCreator(), "Archer": ArcherCreator(),
+                   "Berserker": BerserkerCreator(), "Lands_knecht": Lands_knechtCreator(),
+                   "Paladin": PaladinCreator()}
     return CreatorDict[key]
 
 
-class CreateObject(ABC):
+class ObjectCreator(ABC):
     @abstractmethod
-    def create(self, player_numb_, type_, gold_increment_, relation_, units_pool_,
-               stack_):
+    def create(self, player_numb, name, gold_increment, relation, units_pool,
+               army):
         pass
 
     def __init__(self):
         pass
 
 
-class CreateTown(CreateObject):
-    def create(self, player_numb_, type_, gold_increment_, relation_, units_pool_,
-               stack_):
-        return town(player_numb_, type_, gold_increment_, relation_, units_pool_,
-                    stack_)
+class TownCreator(ObjectCreator):
+    def create(self, player_numb, obj_type, gold_increment, relation, units_pool,
+               stack):
+        return town(player_numb, obj_type, gold_increment, relation, units_pool,
+                    stack)
 
 
-class CreateHero(CreateObject):
-    def create(self, player_numb_, type_, gold_increment_, relation_, units_pool_,
-               stack_):
-        return hero(player_numb_, type_, gold_increment_, relation_, units_pool_,
-                    stack_)
+class HeroCreator(ObjectCreator):
+    def create(self, player_numb, obj_type, gold_increment, relation, units_pool,
+               stack):
+        return hero(player_numb, obj_type, gold_increment, relation, units_pool,
+                    stack)
 
 
-class CreateUnit(ABC):
+class Object:
+    def __init__(self, player_numb, name, gold_increment, relation, units_pool,
+                 army):
+        self.player_number = player_numb
+        self.name = name
+        self.gold_increment = gold_increment
+        self.relation = relation
+        self.units_pool = Units_pool[units_pool]
+        self.army = army
+
+
+class town(Object):
+    def __init__(self, player_numb, name, gold_increment, relation="Empty", units_pool="empty_pool",
+                 army=None):
+        super().__init__(player_numb, name, gold_increment, relation, units_pool, army)
+
+
+class hero(Object):
+    def __init__(self, player_numb, name, gold_increment, relation="Empty", units_pool="empty_pool",
+                 army=None):
+        super().__init__(player_numb, name, gold_increment, relation, units_pool, army)
+
+
+class object_container:
+
+    def __init__(self):
+        self.objects = dict()
+
+    def get_values(self):
+        return self.objects.values()
+
+    def get_keys(self):
+        return self.objects.keys()
+
+    def get_by_key(self, key):
+        return self.objects[key]
+
+    def add_object(self, object_tmp):
+        self.objects[object_tmp.name] = object_tmp
+        return True
+
+    def remove_object(self, object_tmp):
+        if object_tmp.name in self.objects.keys():
+            self.objects.pop(object_tmp.name)
+            return True
+        else:
+            print("Object ", object_tmp.name, " doesn't exist")
+            return False
+
+    def print_objects(self):
+        for element in self.objects:
+            print("Object - ", element.name, "under control - ", element.player_number)
+
+
+class UnitCreator(ABC):
 
     @abstractmethod
     def create(self):
@@ -47,81 +102,76 @@ class CreateUnit(ABC):
         pass
 
 
-class CreateImp(CreateUnit):
+class ImpCreator(UnitCreator):
     def create(self):
-        return unit("Imp")
+        return Imp()
 
 
-class CreateDemon(CreateUnit):
+class DemonCreator(UnitCreator):
     def create(self):
-        return unit("Demon")
+        return Demon()
 
 
-class CreateCerberus(CreateUnit):
+class CerberusCreator(UnitCreator):
     def create(self):
-        return unit("Cerberus")
+        return Cerberus()
 
 
-class CreatePit_fiend(CreateUnit):
+class Pit_fiendCreator(UnitCreator):
     def create(self):
-        return unit("Pit_fiend")
+        return Pit_fiend()
 
 
-class CreateDevil(CreateUnit):
+class DevilCreator(UnitCreator):
     def create(self):
-        return unit("Devil")
+        return Devil()
 
 
-class CreateFootman(CreateUnit):
+class FootmanCreator(UnitCreator):
     def create(self):
-        return unit("Footman")
+        return Footman()
 
 
-class CreateArcher(CreateUnit):
+class ArcherCreator(UnitCreator):
     def create(self):
-        return unit("Archer")
+        return Archer()
 
 
-class CreateBerserker(CreateUnit):
+class BerserkerCreator(UnitCreator):
     def create(self):
-        return unit("Berserker")
+        return Berserker()
 
 
-class CreateLands_knecht(CreateUnit):
+class Lands_knechtCreator(UnitCreator):
     def create(self):
-        return unit("Lands_knecht")
+        return Lands_knecht()
 
 
-class Create(CreateUnit):
+class PaladinCreator(UnitCreator):
     def create(self):
-        return unit("Imp")
+        return Paladin()
 
 
-class CreatePaladin(CreateUnit):
+class Skeleton_warriorCreator(UnitCreator):
     def create(self):
-        return unit("Paladin")
+        return Skeleton_warrior()
 
 
-class CreateSkeleton_warrior(CreateUnit):
+class GhostCreator(UnitCreator):
     def create(self):
-        return unit("Skeleton_warrior")
+        return Ghost()
 
 
-class CreateGhost(CreateUnit):
+class VampireCreator(UnitCreator):
     def create(self):
-        return unit("Ghost")
+        return Vampire()
 
 
-class CreateVampire(CreateUnit):
+class Death_knightCreator(UnitCreator):
     def create(self):
-        return unit("Vampire")
+        return Death_knight()
 
 
-class CreateDeath_knight(CreateUnit):
+class LichCreator(UnitCreator):
     def create(self):
-        return unit("Death_knight")
-
-
-class CreateLich(CreateUnit):
-    def create(self):
-        return unit("Lich")
+        return Lich()

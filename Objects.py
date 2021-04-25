@@ -1,208 +1,335 @@
-from Start_stacks import Unit_stacks
-from Creator import *
+from Units import Army
 import copy
+from Units_pool import Units_pool
+from Creator import *
+
+CASTLE_GOLD_INCREMENT = 500
+NECROPOLIS_GOLD_INCREMENT = 450
+DEMONPOLIS_GOLD_INCREMENT = 400
+START_PLAYER_GOLD = 2000
+MAX_ARMY_SIZE = 5
+START_MOVEPOINTS = 2
+CORRECT_FRACTIONS = ["Castle", "Necropolis", "Demonpolis"]
+
+
+class Map:
+    def __init__(self, player_numb):
+        self.objects = object_container()
+        self.players = []
+        self.TownCreatorObj = TownCreator()
+        self.HeroCreatorObj = HeroCreator()
+        for i in range(player_numb):
+            print("player ", i + 1, " - choose fraction")
+            while True:
+                fraction = str(input())
+                if fraction not in CORRECT_FRACTIONS:
+                    print("Invalid fraction name -", fraction)
+                    continue
+                else:
+                    break
+
+            if fraction == "Castle":
+                town_obj = TownCreator.create(self.TownCreatorObj, i, "Castle" + str(i), CASTLE_GOLD_INCREMENT, "Empty",
+                                              "Castle",
+                                              Army())
+                hero_obj = HeroCreator.create(self.HeroCreatorObj, i, "Warrior" + str(i), 0, town_obj, "empty_pool",
+                                              Army())
+                hero_obj.army.castle_stack(i)
+                town_obj.relation = hero_obj
+                player_obj = player("Castle", i, object_container(), self)
+                player_obj.objects.add_object(hero_obj)
+                player_obj.objects.add_object(town_obj)
+
+            elif fraction == "Necropolis":
+                town_obj = TownCreator.create(self.TownCreatorObj, i, "Necropolis" + str(i), NECROPOLIS_GOLD_INCREMENT,
+                                              "Empty",
+                                              "Necropolis",
+                                              Army())
+                hero_obj = HeroCreator.create(self.HeroCreatorObj, i, "Necromancer" + str(i), 0, town_obj,
+                                              "empty_pool",
+                                              Army())
+                hero_obj.army.necro_stack(i)
+                town_obj.relation = hero_obj
+                player_obj = player("Necropolis", i, object_container(), self)
+                player_obj.objects.add_object(hero_obj)
+                player_obj.objects.add_object(town_obj)
+
+            else:
+                town_obj = TownCreator.create(self.TownCreatorObj, i, "Demonpolis" + str(i), DEMONPOLIS_GOLD_INCREMENT,
+                                              "Empty",
+                                              "Demonpolis",
+                                              Army())
+                hero_obj = HeroCreator.create(self.HeroCreatorObj, i, "Barbarian" + str(i), 0, town_obj,
+                                              "empty_pool",
+                                              Army())
+                hero_obj.army.demon_stack(i)
+                town_obj.relation = hero_obj
+                player_obj = player("Demonpolis", i, object_container(), self)
+                player_obj.objects.add_object(hero_obj)
+                player_obj.objects.add_object(town_obj)
+            self.objects.add_object(town_obj)
+            self.add_player(player_obj)
+
+        for i in range(number_of_players, 3 * number_of_players + 1):
+            if i % 3 == 0:
+                town_obj = TownCreator.create(self.TownCreatorObj, "Neutal", "Necropolis" + str(i),
+                                              NECROPOLIS_GOLD_INCREMENT,
+                                              "Empty",
+                                              "Necropolis",
+                                              Army())
+            elif i % 3 == 1:
+                town_obj = TownCreator.create(self.TownCreatorObj, "Neutal", "Demonpolis" + str(i),
+                                              DEMONPOLIS_GOLD_INCREMENT,
+                                              "Empty",
+                                              "Demonpolis",
+                                              Army())
+            else:
+                town_obj = TownCreator.create(self.TownCreatorObj, "Neutal", "Castle" + str(i),
+                                              CASTLE_GOLD_INCREMENT,
+                                              "Empty",
+                                              "Castle",
+                                              Army())
+            self.objects.add_object(town_obj)
+
+    def add_player(self, object_tmp):
+        self.players.append(object_tmp)
+        return True
+
+    def print_map(self):
+        for object_tmp in self.objects.get_values():
+            print(object_tmp.name, " player - ", object_tmp.player_number, " gold increment - ",
+                  object_tmp.gold_increment,
+                  " hero - ", object_tmp.relation if object_tmp.relation == "Empty" else object_tmp.relation.name)
 
 
 class player:
-    def __init__(self, hero_, town_, movepoint, cur_movepoint, fract):
-        self.heros = {}
-        self.towns = [town_]
-        self.movepoints = movepoint
-        self.fraction = fract
-        self.current_movepoints = cur_movepoint
-        self.gold = 0
-        self.number = 0
 
-    def reinit(self, hero_name, hero_, town_, movepoint, cur_movepoint, fract, numb):
-        self.heros = {hero_name: hero_}
-        self.towns = [town_]
-        self.movepoints = movepoint
-        self.fraction = fract
-        self.current_movepoints = cur_movepoint
-        self.gold = 2000
-        self.number = numb
+    def __init__(self, fraction, player_number, object_cont, map_tmp):
 
-    def funcs(self, key, arr):
-        func_dict = {"move": player.move_to, "attack": player.attack_town,
-                     "replace": player.replace_unit,
-                     "buy": player.buy_unit, "statistic": player.print_towns, "army": player.print_army}
-        if key not in func_dict.keys():
-            print("Wrong command")
-            return
+        self.movepoints = START_MOVEPOINTS
+        self.current_movepoints = START_MOVEPOINTS
+        self.gold = START_PLAYER_GOLD
+        self.fraction = fraction
+        self.player_number = player_number
+        self.objects = object_cont
+        self.TownCreatorObj = TownCreator()
+        self.current_map = map_tmp
+        # методы вызываются по ключу, каждому ключу соответствует кортеж из метода и кол-ва аргументов
+        self.func_dict = {"move": (self.move_to, 2), "attack": (self.attack_town, 2),
+                          "replace": (self.replace_unit, 4),
+                          "buy": (self.buy_unit, 3), "info": (self.print_info, 0), "army": (self.print_army, 1),
+                          "map": (self.current_map.print_map, 0)}
 
-        return func_dict[key](self, arr)
+    def funcs(self, *args):
+        if len(args) == 0:
+            print("Empty input line")
+            return False
+        if args[0] not in self.func_dict.keys():
+            print("This command doesn't exist - ", args[0])
+            return False
+        if len(args) - 1 != self.func_dict[args[0]][1]:
+            print("Wrong argument quantity for command ", args[0])
+            return False
+        new_args = []
+        if len(args) > 1:
+            new_args += args[1:]
+        return self.func_dict[args[0]][0](*new_args)
 
-    def print_towns(self, arr):
+    def print_info(self):
         print("Current gold - ", self.gold)
-        print("Current heros - ", self.heros.keys())
         print("Current movepoints - ", self.current_movepoints)
-        for town_ in range(len(Town_list) - 1):
-            print(town_, " ", Town_list[town_].type, " Player - ", Town_list[town_].player_numb,
-                  " Hero in town - ",
-                  "Empty" if Town_list[town_].relation == {} else Town_list[town_].relation, " gold increment - ",
-                  Town_list[town_].gold_increment)
+        for object_tmp in self.objects.get_values():
+            if isinstance(object_tmp, town):
+                print(object_tmp.name, " gold increment - ", object_tmp.gold_increment, " hero - ", object_tmp.relation)
 
-    def attack_town(self, arr):
-        if int(arr[1]) >= len(Town_list):
-            print("Wrong town number")
-            return
-        town_ = Town_list[int(arr[1])]
-        hero_ = self.heros[arr[0]]
+    def correct_name(self, hero_name, town_name):
+        if town_name not in current_map.objects.get_keys():
+            print("Town ", town_name, " doesn't exist")
+            return False
 
-        if town_.player_numb == self.number:
+        if hero_name not in self.objects.get_keys():
+            print("Hero ", hero_name, " doesn't exist")
+            return False
+        hero_obj = self.objects.get_by_key(hero_name)
+        if not isinstance(hero_obj, hero):
+            print(hero_name, " is a name of town")
+            return False
+        return True
+
+    def attack_town(self, hero_name, town_name):
+        if not self.correct_name(hero_name, town_name):
+            return False
+        town_obj = current_map.objects.get_by_key(town_name)
+        if town_obj.player_number == self.player_number:
             print("This town is under your control")
-            return
-        hero_.relation.relation = "Empty"
-        hero_.relation = "Empty"
+            return False
+
+        hero_obj = self.objects.get_by_key(hero_name)
+        hero_obj.relation.relation = "Empty"
+        hero_obj.relation = "Empty"
         self.current_movepoints -= 1
-        if town_.relation == "Empty":
-            if player.attack_object(self, town_, hero_):
-                town_.relation = hero_
-                hero_.relation = town_
-                town_.player_numb = self.number
+        if town_obj.relation == "Empty":
+            if self.attack_object(town_obj, hero_obj):
+                town_obj.relation = hero_obj
+                hero_obj.relation = town_obj
+                town_obj.player_number = self.player_number
                 return
         else:
-            if player.attack_object(self, town_.relation, hero_):
-                if player.attack_object(self, town_, hero_):
-                    town_.relation = hero_
-                    hero_.relation = town_
-                    town_.player_numb = self.number
+            if self.attack_object(town_obj.relation, hero_obj):
+                if self.attack_object(town_obj, town_obj):
+                    town_obj.relation = hero_obj
+                    hero_obj.relation = town_obj
+                    town_obj.player_number = self.player_number
                     return
         return
 
-    def attack_object(self, obj, hero_):
-        if len(obj.obj_stack.stack) == 0:
-            print("Player ", self.number, " win!")
+    def attack_object(self, town_obj, hero_obj):
+        if town_obj.army.is_empty():
+            print("Player ", self.player_number, " win!")
             return True
-        opponents = {obj.player_numb: hero_, hero_.player_numb: obj}
-        print("Enter attacked stack")
+        opponents = {town_obj.player_number: hero_obj, hero_obj.player_number: town_obj}
+        print("Enter attacked unit")
         while True:
-            A = sorted(obj.obj_stack.stack + hero_.obj_stack.stack, key=lambda x: x.speed, reverse=True)
-            for units in A:
-                print("Player ", units.player_numb, " ", units.name, " turn")
+            Unit_queue = sorted(town_obj.army.get() + hero_obj.army.get(), key=lambda x: x.speed, reverse=True)
+            for units in Unit_queue:
+                print("Player ", units.player_number, " ", units.name, " turn")
                 print("Defender army:")
-                for units_ in obj.obj_stack.stack:
-                    print(units_.name, " - ", units_.quantity)
+                town_obj.army.print_army()
                 print("Attacker army:")
-                for units_ in hero_.obj_stack.stack:
-                    print(units_.name, " - ", units_.quantity)
+                hero_obj.army.print_army()
                 while True:
-                    data = int(input())
-                    if data >= len(opponents[units.player_numb].obj_stack.stack):
-                        print("Wrong stack number")
+                    input_val = input()
+                    data = 0
+                    try:
+                        data = int(input_val)
+                    except Exception:
+                        print("Incorrect value for number of unit")
+                        continue
+                    if data >= opponents[units.player_number].army.unit_quantity():
+                        print("Wrong unit number")
                     else:
                         break
-                attacked_stack = opponents[units.player_numb].obj_stack.stack[data]
+                attacked_stack = opponents[units.player_number].army.get_by_index(data)
                 if attacked_stack.take_damage(units.deal_damage()):
-                    opponents[units.player_numb].obj_stack.stack.remove(attacked_stack)
-                if len(obj.obj_stack.stack) == 0:
-                    print("Player ", self.number, " win!")
+                    opponents[units.player_number].army.remove_unit(attacked_stack)
+                if town_obj.army.is_empty():
+                    print("Player ", self.player_number, " win!")
                     return True
-                if len(hero_.obj_stack.stack) == 0:
-                    print("Player ", obj.player_numb, " win!")
+                if hero_obj.army.is_empty():
+                    print("Player ", town_obj.player_number, " win!")
                     return False
 
-    def move_to(self, arr):
-        hero_ = self.heros[arr[0]]
-        town_ = int(arr[1])
-        if Town_list[town_].player_numb == self.number:
-            self.current_movepoints -= 1
-            Town_list[town_].relation = hero
-            hero_.relation.relation = "Empty"
-            print(hero_, " Moved to ", town_, ". Move points left - ", self.current_movepoints)
+    def move_to(self, hero_name, town_name):
 
-            return
+        if not self.correct_name(hero_name, town_name):
+            return False
+
+        town_obj = current_map.objects.get_by_key(town_name)
+        hero_obj = self.objects.get_by_key(hero_name)
+        if town_obj.player_number == self.player_number:
+            self.current_movepoints -= 1
+            town_obj.relation = hero_obj
+            hero_obj.relation.relation = "Empty"
+            print(hero_name, "Moved to", town_name, ". Move points left -", self.current_movepoints)
+
+            return True
         else:
             print("This town isn't under your control")
-            return
-
-    def print_army(self, arr):
-        for hero_ in self.heros.keys():
-            print(hero_, " army:", )
-            for units in self.heros[hero_].obj_stack.stack:
-                print(units.name, " - ", units.quantity)
-
-    def buy_unit(self, arr):
-        town_ = int(arr[2])
-        quantity_ = int(arr[0])
-        if arr[1] in Units_pool[Town_list[town_].type]:
-            unit_ = return_unit(arr[1]).create()
-        else:
-            print(Town_list[town_].type, " has no unit ", arr[1])
-            return
-
-        if unit_.price * quantity_ > self.gold:
-            print("Need more gold")
-            return
-        else:
-            tmp_town = CreateTown.create(CreateTownObj, "Neutral", "TmpTown", 400, "Empty", "HeroPool",
-                                         Stacks[3 * Number_of_players])
-
-            unit_ = unit(arr[1])
-            unit_.quantity = quantity_
-            tmp_town.obj_stack.stack.append(unit_)
-
-            Town_list[3 * Number_of_players].obj_stack.stack.append(unit_)
-            if player.replace_unit(self, [len(Town_list) - 1, town_, arr[1], quantity_]):
-                self.gold -= unit_.price * quantity_
-                return
-            else:
-                print("Buying failed")
-
-    def replace_unit(self, arr):  # replace from obj1 to obj2
-        if str(arr[0]).isnumeric() and not str(arr[1]).isnumeric():
-            obj2 = self.heros[arr[1]]
-            obj1 = Town_list[int(arr[0])]
-        elif str(arr[1]).isnumeric() and not str(arr[0]).isnumeric():
-            obj2 = Town_list[int(arr[1])]
-            obj1 = self.heros[arr[0]]
-        elif str(arr[0]).isnumeric() and str(arr[1]).isnumeric():
-            obj2 = Town_list[int(arr[1])]
-            obj1 = Town_list[int(arr[0])]
-        else:
-            obj2 = self.heros[arr[1]]
-            obj1 = self.heros[arr[0]]
-        unit_ = False
-        for units in obj1.obj_stack.stack:
-            if units.name == arr[2]:
-                unit_ = units
-                break
-        if not unit_:
-            print("Wrong unit name")
-            return
-        quantity_ = int(arr[3])
-        if (unit_.quantity < quantity_) or (quantity_ <= 0):
-            print("Wrong unit quantity")
             return False
-        index = -1
-        for units_ind in range(len(obj2.obj_stack.stack)):
-            if unit_.name == obj2.obj_stack.stack[units_ind].name:
-                index = units_ind
-        if len(obj2.obj_stack.stack) == 5:
-            if index == -1:
-                print("Your army currently have 5 unit stacks, you don't can replace ", quantity_, " ", arr[3])
-                return False
-        unit_.quantity -= quantity_
 
-        if index == -1:
-            obj2.obj_stack.stack.append(copy.deepcopy(unit_))
-            obj2.obj_stack.stack[len(obj2.obj_stack.stack) - 1].quantity = quantity_
-            obj2.obj_stack.stack[len(obj2.obj_stack.stack) - 1].player_numb = self.number
-            print(quantity_, " ", unit_.name, " Replaced from ", obj1, " to ", obj2)
-        else:
-            obj2.obj_stack.stack[index].quantity += quantity_
-            print(quantity_, " ", unit_.name, " Replaced from ", obj1, " to ", obj2)
-
-        if unit_.quantity == 0:
-            obj1.obj_stack.stack.remove(unit_)
+    def print_army(self, obj_name):
+        if obj_name not in self.objects.get_keys():
+            print("Obj ", obj_name, " doesn't exist")
+            return False
+        obj = self.objects.get_by_key(obj_name)
+        print(obj_name, " army:")
+        obj.army.print_army()
         return True
 
+    def buy_unit(self, quantity, unit_name, town_name):
+        quantity = int(quantity)
+        if town_name not in self.objects.get_keys():
+            print("Town ", town_name, " doesn't exist")
+            return False
+        town_obj = self.objects.get_by_key(town_name)
+        if not isinstance(town_obj, town):
+            print(town_name, " is a name of hero")
+            return False
+        if unit_name in town_obj.units_pool:
+            tmp_unit = return_unit(unit_name).create()
+        else:
+            print(town_name, " pool has no unit ", unit_name)
+            return False
 
-CreateTownObj = CreateTown()
-CreateHeroObj = CreateHero()
+        if tmp_unit.price * quantity > self.gold:
+            print("Need more gold")
+            return False
+        tmp_town = TownCreator.create(self.TownCreatorObj, -1, "Noname", 0,
+                                      "Empty",
+                                      "empty_pool",
+                                      Army())
+        tmp_unit.quantity = quantity
+        tmp_town.army.add_unit(tmp_unit)
+        if self.replace_unit(tmp_town, town_name, unit_name, quantity):
+            self.gold -= tmp_unit.price * quantity
+            return True
+        else:
+            print("Buying failed")
+            return False
+
+    def replace_unit(self, object1_name, object2_name, unit_name, quantity):  # replace from obj1 to obj2
+        quantity = int(quantity)
+        if object2_name not in self.objects.get_keys():
+            print("Object ", object2_name, " doesn't exist")
+            return False
+        object2 = self.objects.get_by_key(object2_name)
+        # Проверка, вызвана ли функция из ф-ции покупки
+        if not isinstance(object1_name, town):
+            if object1_name not in self.objects.get_keys():
+                print("Object ", object1_name, " doesn't exist")
+                return False
+            object1 = self.objects.get_by_key(object1_name)
+        else:
+            object1 = object1_name
+
+        tmp_unit = False
+        for units in object1.army.get():
+            if units.name == unit_name:
+                tmp_unit = units
+                break
+        if not tmp_unit:
+            print("Wrong unit name")
+            return False
+        if (tmp_unit.quantity < quantity) or (quantity <= 0):
+            print("Wrong unit quantity")
+            return False
+        for units in object2.army.get():
+            if units.name == tmp_unit.name:
+                units.quantity += quantity
+                tmp_unit.quantity -= quantity
+                if tmp_unit.quantity == 0:
+                    object1.army.remove_unit(tmp_unit)
+                return True
+        copy_unit = copy.deepcopy(tmp_unit)
+        copy_unit.quantity = quantity
+        if object2.army.add_unit(copy_unit):
+            tmp_unit.quantity -= quantity
+            if tmp_unit.quantity == 0:
+                object1.army.remove_unit(tmp_unit)
+            return True
+        return False
+
+
 print("Select the number of players")
-Number_of_players = int(input())
-Stacks = [Unit_stacks() for _ in range(6 * Number_of_players)]
-Player_list = [player(None, None, None, None, None) for _ in range(Number_of_players)]
-Town_list = [CreateTown.create(CreateTownObj, None, None, 0, "Empty", "HeroPool", Unit_stacks()) for _ in
-             range(3 * Number_of_players + 1)]
+number_of_players = int(input())
+current_map = Map(number_of_players)
+while (True):
+    for current_player in current_map.players:
+        while current_player.current_movepoints > 0:
+            command = list(input().split())
+            player.funcs(current_player, *command)
+        current_player.current_movepoints = current_player.movepoints
+        for objects in current_player.objects.get_values():
+            current_player.gold += objects.gold_increment
+        print("Player ", current_player.player_number, " -your turn is over")
+    break
